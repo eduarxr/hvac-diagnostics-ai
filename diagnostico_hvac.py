@@ -1,36 +1,17 @@
-import google.generativeai as genai
 import os
 import datetime
-import getpass  # Librería para ocultar contraseñas en la terminal
+import getpass
+from google import genai  # ¡Nueva librería oficial!
 
-def configurar_api():
-    """Configura la clave de API de Gemini de forma segura."""
-    # getpass oculta el texto introducido por el usuario para evitar exponer la clave
+def configurar_cliente():
+    """Configura la conexión segura utilizando el nuevo SDK de Google."""
     api_key = getpass.getpass("Ingresa tu API Key de Gemini (se ocultará al escribir/pegar): ")
-    genai.configure(api_key=api_key)
+    # En la nueva versión, se crea un "Cliente" de conexión
+    return genai.Client(api_key=api_key)
 
-def obtener_modelo_disponible():
-    """Busca dinámicamente el modelo de texto más actualizado en el servidor."""
-    try:
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                return m.name
-        return None
-    except Exception as e:
-        print(f"Error al listar modelos: {e}")
-        return None
-
-def generar_diagnostico_hvac(t_ambiente, t_evaporador, presion_baja, amperaje_compresor, refrigerante="R-410A"):
-    """Envía parámetros operativos a Gemini y extrae un análisis de ingeniería completo."""
-    nombre_modelo = obtener_modelo_disponible()
+def generar_diagnostico_hvac(cliente, t_ambiente, t_evaporador, presion_baja, amperaje_compresor, refrigerante="R-410A"):
+    """Envía parámetros operativos a Gemini usando la nueva API."""
     
-    if not nombre_modelo:
-        return "Error crítico: No se encontraron modelos compatibles con tu API Key."
-        
-    print(f"\n[INFO] Conectando exitosamente con el modelo: {nombre_modelo}")
-    modelo = genai.GenerativeModel(nombre_modelo) 
-    
-    # Obtenemos la fecha actual del sistema
     fecha_hoy = datetime.date.today().strftime("%d de %B de %Y")
     
     prompt = f"""
@@ -53,9 +34,15 @@ def generar_diagnostico_hvac(t_ambiente, t_evaporador, presion_baja, amperaje_co
     REQUISITO DE FIRMA CRÍTICO: Firma el reporte formalmente en el encabezado (De:) y en la despedida (Atentamente:) utilizando estrictamente el nombre "Eduardo Jimenez" seguido de tu título como Ingeniero Mecánico Electricista. No incluyas ningún texto genérico entre corchetes.
     """
     
+    print("\n[INFO] Conectando exitosamente con el modelo: gemini-2.5-flash (Nuevo SDK)")
     print("Generando diagnóstico con IA...")
+    
     try:
-        respuesta = modelo.generate_content(prompt)
+        # Nueva sintaxis de generación de contenido
+        respuesta = cliente.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
         return respuesta.text
     except Exception as e:
         return f"Error detallado de conexión con la API: {e}"
@@ -63,10 +50,13 @@ def generar_diagnostico_hvac(t_ambiente, t_evaporador, presion_baja, amperaje_co
 # --- Bloque principal de ejecución ---
 if __name__ == "__main__":
     print("--- Sistema de Diagnóstico Predictivo HVAC con Gemini ---")
-    configurar_api()
+    
+    # Inicializamos el cliente con la clave segura
+    cliente_ia = configurar_cliente()
     
     print("\n[Ingresando datos de lectura del Manifold y Multímetro...]")
     reporte = generar_diagnostico_hvac(
+        cliente=cliente_ia,
         t_ambiente=35.0,        
         t_evaporador=12.0,      
         presion_baja=105.0,     
